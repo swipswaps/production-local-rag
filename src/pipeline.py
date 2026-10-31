@@ -85,7 +85,7 @@ def initialize_pipeline() -> tuple[SQLiteVectorStore, OllamaEmbeddingClient, Oll
 def main() -> None:
     console.print(
         Panel.fit(
-            "Production-Grade Local RAG Engine (v1.3.0) Initialized",
+            "Production-Grade Local RAG Engine (v1.3.1) Initialized",
             style="bold blue",
         )
     )

@@ -6,7 +6,7 @@ HTTP TRANSPORTS
 
 REVISION NOTE (v1.3.0):
 This document records the v1.2.1 state and is retained for provenance. The
-current repository (v1.3.0) additionally (a) uses the `k = ?` subquery form
+current repository (v1.3.1) additionally (a) uses the `k = ?` subquery form
 required by sqlite-vec v0.1.0+, (b) enables WAL and busy_timeout, (c) uses the
 current /api/embed endpoint, and (d) applies nomic task prefixes. Authoritative
 code lives in src/; the excerpts below illustrate the earlier state.
@@ -61,11 +61,11 @@ across educational repositories and modern local-first tooling:
    - Reference: https://docs.llamaindex.ai/
 
 --------------------------------------------------------------------------------
-3. TECHNICAL ARCHITECTURE & VERBATIM CODE IMPLEMENTATION
+3. TECHNICAL ARCHITECTURE & REPRESENTATIVE CODE EXCERPTS (v1.2.1)
 --------------------------------------------------------------------------------
 Our production repository (swipswaps/production-local-rag) replaces tutorial
 anti-patterns with a modular, typed Python architecture. Below are the verified,
-verbatim code components:
+representative v1.2.1 excerpts (authoritative code lives in src/):
 
 A. Persistent Vector Storage (src/vector_store.py)
 Utilizes SQLite virtual vec0 tables with official sqlite-vec serialization bindings

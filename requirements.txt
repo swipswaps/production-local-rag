@@ -1,0 +1,14 @@
+# Runtime dependencies for the production-grade local RAG engine.
+# Citations:
+# - HTTPX: https://www.python-httpx.org/
+# - Pydantic Settings: https://docs.pydantic.dev/
+# - NumPy: https://numpy.org/doc/stable/
+# - sqlite-vec: https://github.com/asg017/sqlite-vec
+# - Rich: https://rich.readthedocs.io/
+
+httpx==0.28.1
+pydantic==2.10.6
+pydantic-settings==2.7.1
+numpy==2.2.2
+sqlite-vec==0.1.6
+rich==13.9.4

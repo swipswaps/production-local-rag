@@ -1,0 +1,11 @@
+vector_store.db
+vector_store.db-*
+__pycache__/
+*.py[cod]
+.env
+.venv/
+.idea/
+.DS_Store
+
+# Accidental conversation transcripts
+2282af3557819803_*.txt

@@ -31,8 +31,8 @@ tutorial script to a robust, local-first RAG engine. By leveraging SQLite paired
 with the sqlite-vec extension (Alex Garcia, 2024; https://github.com/asg017/sqlite-vec),
 recursive semantic chunking (Kamradt, 2023), and connection-pooled httpx transports
 (Encode OSS, 2024; https://www.python-httpx.org/advanced/clients/), our production
-implementation achieves persistent storage, sub-millisecond approximate nearest
-neighbor (KNN) retrieval, and thread-safe resilience without external SaaS dependencies.
+implementation achieves persistent storage, low-latency brute-force KNN retrieval,
+and explicit resource lifecycle management without external SaaS dependencies.
 
 --------------------------------------------------------------------------------
 2. PRIOR WORK & LANDSCAPE EVALUATION
@@ -40,19 +40,19 @@ neighbor (KNN) retrieval, and thread-safe resilience without external SaaS depen
 To contextualize our architectural decisions, we evaluate comparable approaches
 across educational repositories and modern local-first tooling:
 
-1. NeuralNine / Tech With Tim ("RAG From Scratch" Tutorials):
+1. NeuralNine ("RAG From Scratch in 50 Lines of Code" Tutorial):
    - Mechanism: Loads text files into Python lists, computes embeddings via Ollama,
      and evaluates cosine similarity in-memory using NumPy dot products (numpy.org).
    - Limitation: O(N) linear scan complexity. Every application restart requires
      re-chunking and re-embedding the entire corpus.
    - Reference: https://www.youtube.com/watch?v=f9uAG3AQGWM
 
-2. sqlite-rag-mcp (Giuseppe Ferretti / Model Context Protocol):
-   - Mechanism: Combines sqlite-vec (vector KNN) and FTS5 (BM25 lexical search) with
-     Reciprocal Rank Fusion (RRF) inside a single SQLite database file.
-   - Strength: Demonstrates the ultimate viability of SQLite as a standalone
-     vector and lexical search store.
-   - Reference: https://github.com/asg017/sqlite-vec
+2. Community SQLite RAG integrations (vec0 + FTS5 + RRF):
+   - Mechanism: Combine sqlite-vec (vector KNN) and FTS5 (BM25 lexical search)
+     with Reciprocal Rank Fusion (RRF) inside a single SQLite database file.
+   - Strength: Demonstrates the viability of SQLite as a standalone vector and
+     lexical search store.
+   - Reference: https://github.com/asg017/sqlite-vec (enabling extension)
 
 3. LlamaIndex / LangChain Frameworks:
    - Mechanism: Heavy abstraction layers over vector stores and LLM providers.
@@ -64,8 +64,8 @@ across educational repositories and modern local-first tooling:
 3. TECHNICAL ARCHITECTURE & REPRESENTATIVE CODE EXCERPTS (v1.2.1)
 --------------------------------------------------------------------------------
 Our production repository (swipswaps/production-local-rag) replaces tutorial
-anti-patterns with a modular, typed Python architecture. Below are the verified,
-representative v1.2.1 excerpts (authoritative code lives in src/):
+anti-patterns with a modular, typed Python architecture. Below are representative
+v1.2.1 excerpts; they are historical and authoritative code lives in src/.
 
 A. Persistent Vector Storage (src/vector_store.py)
 Utilizes SQLite virtual vec0 tables with official sqlite-vec serialization bindings
@@ -196,11 +196,13 @@ class OllamaEmbeddingClient:
 --------------------------------------------------------------------------------
 4. EFFICACY & USER EXPERIENCE (UX) EVALUATION
 --------------------------------------------------------------------------------
-- Quantitative Efficacy: On a corpus of 1,000 document chunks, in-memory NumPy linear
-  scans scale at O(N) (~15ms per query). SQLite virtual vec0 KNN index traversal
-  executes in < 1.2ms.
-- Startup Overhead: Cold-start ingestion overhead is eliminated after the initial run
-  because embeddings are persisted across sessions in vector_store.db.
+- Quantitative Efficacy: Not benchmarked in this repository. The vec0 index is a
+  brute-force KNN structure, so query latency grows with corpus size; measure it
+  in your own deployment before quoting numbers. No performance figure here is a
+  measurement.
+- Startup Overhead: Re-embedding is skipped after the initial run because
+  embeddings persist in vector_store.db. New documents are not picked up until
+  the store is cleared and re-ingested (see README).
 - Developer Experience (DX) & UX: Built with Rich terminal panels, providing clear
   visual separation between query prompts, LLM completion answers, and source
   distance metrics. Zero telemetry or cloud egress; 100% local execution via Ollama.

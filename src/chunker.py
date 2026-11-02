@@ -32,19 +32,44 @@ class RecursiveMarkdownChunker:
 
     def _split_long_text(self, text: str) -> List[str]:
         """
-        Recursively split text that exceeds chunk_size.
-        Order: sentences -> words -> hard character split.
+        Recursively split text until every piece is at most chunk_size.
+        Order: sentences -> words -> hard character split. A piece is never
+        returned larger than chunk_size, which is what makes the class-level
+        size guarantee hold for callers.
         """
         if len(text) <= self.chunk_size:
             return [text]
 
-        sentences = _SENTENCE_RE.split(text)
+        sentences = [s for s in _SENTENCE_RE.split(text) if s]
         if len(sentences) > 1:
-            return sentences
+            pieces: List[str] = []
+            for sentence in sentences:
+                pieces.extend(self._split_long_text(sentence))
+            return pieces
 
         words = text.split()
         if len(words) > 1:
-            return words
+            pieces = []
+            current = ""
+            for word in words:
+                if len(word) > self.chunk_size:
+                    if current:
+                        pieces.append(current)
+                        current = ""
+                    pieces.extend(
+                        word[i:i + self.chunk_size]
+                        for i in range(0, len(word), self.chunk_size)
+                    )
+                    continue
+                candidate = f"{current} {word}".strip() if current else word
+                if len(candidate) > self.chunk_size:
+                    pieces.append(current)
+                    current = word
+                else:
+                    current = candidate
+            if current:
+                pieces.append(current)
+            return pieces
 
         return [text[i:i + self.chunk_size] for i in range(0, len(text), self.chunk_size)]
 
@@ -77,11 +102,12 @@ class RecursiveMarkdownChunker:
 
         def flush() -> None:
             nonlocal current
-            if current.strip():
+            content = current.strip()
+            if content:
                 chunks.append({
-                    "content": current.strip(),
+                    "content": content,
                     "source": source_name,
-                    "length": len(current),
+                    "length": len(content),
                 })
             current = ""
 
@@ -97,6 +123,14 @@ class RecursiveMarkdownChunker:
                     if len(candidate) > self.chunk_size:
                         flush()
                         overlap = self._overlap_tail(chunks[-1]["content"]) if chunks else ""
+                        budget = self.chunk_size - len(piece) - 1
+                        if budget <= 0:
+                            overlap = ""
+                        elif len(overlap) > budget:
+                            overlap = overlap[-budget:]
+                            match = re.search(r"\s", overlap)
+                            if match:
+                                overlap = overlap[match.start() + 1:]
                         current = (overlap + "\n" + piece).strip() if overlap else piece
                     else:
                         current = candidate

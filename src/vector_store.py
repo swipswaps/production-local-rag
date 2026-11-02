@@ -137,6 +137,17 @@ class SQLiteVectorStore:
         row = self.conn.execute("SELECT 1 FROM chunks_meta LIMIT 1").fetchone()
         return row is None
 
+    def count(self) -> int:
+        """Return the number of stored chunks."""
+        row = self.conn.execute("SELECT COUNT(*) FROM chunks_meta").fetchone()
+        return int(row[0])
+
+    def reset(self) -> None:
+        """Remove every stored chunk and vector in one transaction."""
+        with self.conn:
+            self.conn.execute("DELETE FROM vec_items")
+            self.conn.execute("DELETE FROM chunks_meta")
+
     def close(self) -> None:
         self.conn.commit()
         self.conn.close()

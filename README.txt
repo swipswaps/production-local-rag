@@ -51,15 +51,36 @@ WHAT CHANGED IN v1.3.0 (vs v1.2.1):
 8. Dimension safety: embedding_dim configurable and validated per row.
 
 BEST NEXT STEPS FORWARD:
-1. Ingest Custom Documentation: drop .md files into docs/. The pipeline will
-   chunk, embed, and index them on the next run.
+1. Ingest Custom Documentation: drop .md files into docs/, then remove
+   vector_store.db (it is gitignored) so the next run re-ingests the corpus.
+   Ingestion runs only while the vector store is empty; there is no incremental
+   append yet, and adding a file without clearing the store will not index it.
 2. Hybrid Search: add FTS5 + BM25 alongside dense vectors; fuse with
    Reciprocal Rank Fusion.
 3. Cross-Encoder Re-Ranking: add bge-reranker to refine top-K before the LLM.
 
 INSTALLATION & EXECUTION:
-$ pip install -r requirements.txt
+$ ./scripts/setup-rag-venv.sh
+$ . .venv/bin/activate
 $ python -m src.pipeline
+
+PYTHON VERSION:
+Use Python 3.10-3.13. Python 3.14 fails because the pinned pydantic-core
+does not build (PyO3 supports at most 3.13). setup-rag-venv.sh picks a
+compatible interpreter and installs the pinned requirements.
+
+NON-INTERACTIVE CLI:
+$ ./scripts/rag-cli.sh status
+$ ./scripts/rag-cli.sh ingest docs/ --reset
+$ ./scripts/rag-cli.sh query "What is the pet policy?" --top-k 3
+$ ./scripts/rag-cli.sh query "What is the pet policy?" --json
+$ ./scripts/rag-cli.sh query "What is the pet policy?" --answer
+$ ./scripts/rag-cli.sh reset --yes
+   (ingest appends; use --reset for a clean rebuild. .md and .txt are read.)
+
+CONTRACT CHECK:
+$ python -m unittest discover -s tests -v
+   (enforces the chunk_size bound and chunk metadata shape)
 
 OPTIONAL - AUTOMATED REPO SYNC:
 $ python setup_repo.py
@@ -68,3 +89,19 @@ PREREQUISITES:
 $ ollama serve
 $ ollama pull nomic-embed-text
 $ ollama pull qwen2.5:7b-instruct
+
+TIMEOUTS:
+RAG_REQUEST_TIMEOUT  embedding/read timeout (default 30s)
+RAG_CHAT_TIMEOUT     chat read timeout (default 300s)
+RAG_CONNECT_TIMEOUT  connect timeout (default 5s)
+
+MCP (RETRIEVAL ONLY):
+$ ./scripts/rag-mcp.sh --self-test
+   tools: search_docs(query, top_k), status
+   The server must run where the venv and Ollama are reachable.
+
+OPERATIONS:
+$ ./scripts/01-audit-cpu-lock.sh --stress 10
+$ ./scripts/02-relieve-contention.sh --dashboard-low
+$ ./scripts/03-verify-local-llm.sh --warm
+$ ./scripts/04-retrieval-only.sh --query "What is the pet policy?"

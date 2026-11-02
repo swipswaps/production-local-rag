@@ -25,7 +25,7 @@ class OllamaChatClient:
         self.client = httpx.Client(
             base_url=settings.ollama_base_url,
             timeout=httpx.Timeout(
-                settings.request_timeout,
+                settings.chat_timeout,
                 connect=settings.connect_timeout,
             ),
             limits=httpx.Limits(

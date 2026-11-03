@@ -39,6 +39,28 @@ no rm -rf, exits 0 or 2. All scripts print measured state first.
   Emits JSON chunks for a remote model (opencode / DeepSeek / Gemini) to
   synthesize the answer. No local generation.
 
+07 I/O TRIAGE
+  ./scripts/07-io-triage.sh
+  ./scripts/07-io-triage.sh --stop-updatedb --yes
+  ./scripts/07-io-triage.sh --dashboard-low-io
+  ./scripts/07-io-triage.sh --rag
+
+  Prints load/PSI/vmstat, indexers (updatedb/plocate/tracker/baloo),
+  iotop/pidstat, docker stats/log driver/df, DB/WAL/log sizes, and
+  /api/resources. --dashboard-low-io appends DASH_SSE_MS/DASH_SEGMENTS/
+  DASH_AUTO_SHED to the harness .env.local; restart to apply.
+
+08 GATED RECOVERY
+  ./scripts/08-gated-recovery.sh --diagnose
+  ./scripts/08-gated-recovery.sh --all --yes
+  ./scripts/08-gated-recovery.sh --all --yes --restart-web
+  ./scripts/08-gated-recovery.sh --push
+
+  Host-only. Every assert fails closed with exit 2: host commands, repo
+  identity, dashboard JSON, indexer stop, I/O threshold, dashboard keys,
+  RAG venv/Ollama/model/store, runbook phases, and push (no commits ahead).
+  Use --allow-high-io to override only the I/O threshold.
+
 MCP (RETRIEVAL ONLY)
   ./scripts/rag-mcp.sh --self-test
   ./scripts/rag-mcp.sh

@@ -146,3 +146,6 @@ $ ./scripts/01-audit-cpu-lock.sh --stress 10
 $ ./scripts/02-relieve-contention.sh --dashboard-low
 $ ./scripts/03-verify-local-llm.sh --warm
 $ ./scripts/04-retrieval-only.sh --query "What is the pet policy?"
+$ ./scripts/07-io-triage.sh
+$ ./scripts/08-gated-recovery.sh --diagnose
+$ ./scripts/08-gated-recovery.sh --all --yes

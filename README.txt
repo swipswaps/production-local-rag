@@ -2,6 +2,47 @@
 PRODUCTION-GRADE RAG ENGINE (LOCAL-FIRST ARCHITECTURE v1.3.1)
 ================================================================================
 
+CURRENT STATE (2026-11-03):
+-------------------------------------------------------------------------------
+HOW WE GOT HERE:
+- v1.3.1 shipped the sqlite-vec KNN fix, WAL/busy_timeout, /api/embed, nomic
+  prefixes, retryable HTTP, and a claimed chunk_size guarantee.
+- A 2026-11 audit found three contract defects: the chunker could exceed
+  chunk_size when overlap was re-added; the README claimed new docs were
+  indexed on the next run although ingestion only runs when the store is
+  empty; and the white paper quoted unmeasured latency/ANN/thread-safety
+  claims. The chunker now enforces the bound; the docs state the real
+  behaviour; the white paper labels its numbers as unmeasured design notes.
+- Added a non-interactive CLI (query/ingest/status/reset), a dependency-free
+  retrieval-only MCP server (search_docs/status), stdlib contract tests, a
+  Python 3.10-3.13 venv bootstrap, and host runbooks (01-06).
+- On the .24 host, an EC/firmware frequency lock held all cores at 399 MHz;
+  an EC reset restored 3.2-4.2 GHz, so local inference became viable again.
+
+WHERE WE ARE:
+- Version 1.3.1 plus post-release hardening (commits a9eb5da, 7d9d0c8,
+  60dd6a7). Python 3.12 venv, nomic-embed-text (and qwen2.5:3b-instruct),
+  vector_store.db populated from docs/handbook.md.
+- Retrieval works: query returns [0.4709] docs/handbook.md for the pet
+  policy. Local chat is optional and CPU-bound; test it with 03 before
+  relying on it. Remote generation remains the fast path. The host venv is
+  not portable into the opencode container.
+
+HOW TO USE WHAT WE HAVE NOW:
+- Bootstrap:  ./scripts/setup-rag-venv.sh
+- Status:     ./scripts/rag-cli.sh status
+- Ingest:     ./scripts/rag-cli.sh ingest docs/ --reset
+- Retrieval:  ./scripts/04-retrieval-only.sh --query "What is the pet policy?"
+- Chat:       RAG_CHAT_MODEL=qwen2.5:3b-instruct ./scripts/rag-cli.sh query "..." --answer
+- Verify LLM: ./scripts/03-verify-local-llm.sh --model qwen2.5:3b-instruct --warm
+- MCP:        ./scripts/rag-mcp.sh --self-test   (search_docs, status)
+- Runbook:    ./scripts/06-runbook.sh --phase 1 ... --phase 6
+- Timeouts:   RAG_REQUEST_TIMEOUT=30 (embeddings), RAG_CHAT_TIMEOUT=300 (chat)
+- Ingestion truth: ingestion runs only while the store is empty; use --reset
+  for a clean rebuild. Retrieval-only is the reliable default.
+
+The historical sections below retain the v1.3.0/v1.3.1 rationale.
+
 ORIGIN & ACKNOWLEDGEMENT:
 This production-grade repository evolved from educational concepts demonstrated
 in NeuralNine's tutorial video ("How to Build RAG From Scratch in 50 Lines of

@@ -16,11 +16,11 @@
 SCRIPT_NAME="11-host-access.sh"
 HOST="${HOST:-192.168.4.24}"
 REMOTE_USER="${REMOTE_USER:-owner}"
-SSH_KEY="${SSH_KEY:-$HOME/.ssh/opencode_container_ed25519}"
-SSH_BIN="${SSH_BIN:-$HOME/.local/openssh/bin/ssh}"
-SSH_KEYGEN="${SSH_KEYGEN:-$(dirname "$SSH_BIN")/ssh-keygen}"
+SSH_KEY="${SSH_KEY:-$HOME/.config/opencode/container_key}"
+SSH_BIN="${SSH_BIN:-$(command -v ssh || printf '%s' "$HOME/.local/openssh/bin/ssh")}"
+SSH_KEYGEN="${SSH_KEYGEN:-$(command -v ssh-keygen || printf '%s' "$(dirname "$SSH_BIN")/ssh-keygen")}"
 AUTH_KEYS="${AUTH_KEYS:-/home/owner/.ssh/authorized_keys}"
-KNOWN_HOSTS_FILE="${KNOWN_HOSTS_FILE:-/home/owner/.ssh/known_hosts}"
+KNOWN_HOSTS_FILE="${KNOWN_HOSTS_FILE:-$HOME/.config/opencode/container_known_hosts}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-5}"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/openssh-client"
 DISPLAY_NUM="${DISPLAY_NUM:-:0}"
@@ -44,7 +44,7 @@ usage() {
   printf '%s\n' "Usage: $SCRIPT_NAME [--check|--install|--cmd CMD|--screen] [--yes] [--out PATH]"
   printf '%s\n' ""
   printf '%s\n' "  --check    verify ssh client, key, and host login"
-  printf '%s\n' "  --install  fetch ssh client, create the key, authorize it (needs --yes)"
+  printf '%s\n' "  --install  fetch ssh client, create the durable key, authorize it (host script if needed)"
   printf '%s\n' "  --cmd CMD  run CMD on the host and stream its output"
   printf '%s\n' "  --list     list host windows (id, desktop, title)"
   printf '%s\n' "  --screen   capture the host Terminal window and OCR it"
@@ -121,8 +121,10 @@ ensure_key() {
 }
 
 authorize_key() {
-  [ -f "$AUTH_KEYS" ] || die "missing $AUTH_KEYS (is the host home mounted?)"
-  local pub
+  if [ ! -f "$AUTH_KEYS" ]; then
+    log "host authorizer needed once: scripts/authorize-container-key.sh $SSH_KEY.pub"
+    return 0
+  fi
   pub=$(cat "$SSH_KEY.pub") || die "cannot read $SSH_KEY.pub"
   if grep -qF "$pub" "$AUTH_KEYS"; then
     pass "key already authorized in $AUTH_KEYS"

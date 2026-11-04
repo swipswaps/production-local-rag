@@ -140,18 +140,19 @@ no rm -rf, exits 0 or 2. All scripts print measured state first.
 
 11 HOST ACCESS
   ./scripts/11-host-access.sh --check
-  ./scripts/11-host-access.sh --install --yes
+  ./scripts/11-host-access.sh --install
   ./scripts/11-host-access.sh --cmd 'hostname; uptime -p'
   ./scripts/11-host-access.sh --list
   ./scripts/11-host-access.sh --screen [--window ID]
 
-  Runs in the container: bootstraps a local ssh client (apt download +
-  extract, no root), a dedicated container key, and host authorization.
-  --cmd executes on the host; --list/--screen capture a host window and
-  OCR it (fallback). tmux is the primary monitor: --tmux-new, --tmux-exec,
-  --tmux-capture (exact text), --tmux-send (literal text + Enter),
-  --tmux-kill. The private key is never printed. Revoke with: remove the
-  opencode-container line from the host authorized_keys.
+  Runs in the container. Uses the durable key at
+  ~/.config/opencode/container_key (host-mounted) and the /rag:ro mount for
+  this repo. The host authorizes the public key once with
+  scripts/authorize-container-key.sh (RESTRICT=1); after that, recreates need
+  no user step. Installs openssh-client at runtime if the image lacks it.
+  --cmd executes on the host; tmux is the primary monitor (--tmux-new,
+  --tmux-exec, --tmux-capture, --tmux-send, --tmux-kill); --screen is the OCR
+  fallback. The private key is never printed.
 
 CLI AND SETUP
   ./scripts/setup-rag-venv.sh              create the 3.10-3.13 venv

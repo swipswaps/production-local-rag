@@ -254,10 +254,10 @@ dashboard_low_io() {
   local envfile="$HARNESS_DIR/.env.local"
   [ -f "$envfile" ] || { fail "missing $envfile"; return 1; }
   if [ "$DRY_RUN" -eq 1 ]; then
-    printf '[dry-run] append DASH_SSE_MS=30000 DASH_SEGMENTS=cost DASH_AUTO_SHED=1 to %s\n' "$envfile"
+    printf '[dry-run] append DASH_SSE_MS=30000 DASH_SEGMENTS=cost,activity,todos DASH_AUTO_SHED=1 to %s\n' "$envfile"
     return 0
   fi
-  for kv in "DASH_SSE_MS=30000" "DASH_SEGMENTS=cost" "DASH_AUTO_SHED=1"; do
+  for kv in "DASH_SSE_MS=30000" "DASH_SEGMENTS=cost,activity,todos" "DASH_AUTO_SHED=1"; do
     key="${kv%%=*}"
     if grep -q "^${key}=" "$envfile"; then
       pass "$key already set"

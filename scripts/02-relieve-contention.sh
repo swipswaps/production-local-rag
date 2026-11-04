@@ -112,9 +112,16 @@ dashboard_low() {
     return 0
   fi
   docker exec "$web" sh -c '
-    for p in $(pgrep -f dashboard.mjs); do
-      renice 10 -p "$p" || true
-      if command -v ionice >/dev/null; then ionice -c3 -p "$p" || true; fi
+    for d in /proc/[0-9]*; do
+      [ -r "$d/cmdline" ] || continue
+      cmd=$(tr "\000" " " < "$d/cmdline")
+      case "$cmd" in
+        *dashboard.mjs*)
+          p=${d#/proc/}
+          renice 10 -p "$p" || true
+          if command -v ionice >/dev/null; then ionice -c3 -p "$p" || true; fi
+          ;;
+      esac
     done
   ' || die "could not lower dashboard priority"
 }

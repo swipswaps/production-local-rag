@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     # Ollama service
     ollama_base_url: str = "http://localhost:11434"
-    request_timeout: float = 30.0
+    request_timeout: float = 120.0
     chat_timeout: float = 300.0
     connect_timeout: float = 5.0
     max_connections: int = 10

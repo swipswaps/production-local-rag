@@ -14,6 +14,7 @@
 
 SCRIPT_NAME="03-verify-local-llm.sh"
 MODEL="qwen2.5:3b-instruct"
+EMBED_MODEL="nomic-embed-text"
 MAX_SECONDS=60
 RUN_TIMEOUT=180
 WARM=0
@@ -22,7 +23,7 @@ usage() {
   printf '%s\n' "Usage: $SCRIPT_NAME [--model NAME] [--warm] [--max-seconds N] [--timeout N]"
   printf '%s\n' ""
   printf '%s\n' "  --model NAME       model to test (default: $MODEL)"
-  printf '%s\n' "  --warm             run once to load the model, then time the second run"
+  printf '%s\n' "  --warm             load chat + embedding models before timing the chat run"
   printf '%s\n' "  --max-seconds N    fail if the run takes longer (default: $MAX_SECONDS)"
   printf '%s\n' "  --timeout N        hard kill after N seconds (default: $RUN_TIMEOUT)"
   printf '%s\n' "  --help             this text"
@@ -64,6 +65,21 @@ main() {
     log "warming $MODEL ..."
     timeout "$RUN_TIMEOUT" ollama run "$MODEL" "hi" >/tmp/rag-warm.out 2>&1
     tail -5 /tmp/rag-warm.out
+    if command -v curl >/dev/null && ollama list 2>&1 | grep -Fq "$EMBED_MODEL"; then
+      log "warming $EMBED_MODEL (embedding) ..."
+      local estart eend erc
+      estart=$(date +%s)
+      curl -sS --max-time "$RUN_TIMEOUT" http://127.0.0.1:11434/api/embed \
+        -d "{\"model\":\"$EMBED_MODEL\",\"input\":\"search_query: warm\"}" \
+        >/tmp/rag-warm-embed.json 2>&1
+      erc=$?
+      eend=$(date +%s)
+      log "embed warm: rc=${erc} elapsed=$((eend - estart))s (bound=${RUN_TIMEOUT}s)"
+      tail -c 120 /tmp/rag-warm-embed.json
+      printf '\n'
+    else
+      log "embedding model $EMBED_MODEL unavailable; skipping embed warm"
+    fi
   fi
 
   out=$(mktemp)

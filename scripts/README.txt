@@ -29,8 +29,11 @@ no rm -rf, exits 0 or 2. All scripts print measured state first.
   ./scripts/03-verify-local-llm.sh --model qwen2.5:3b-instruct --warm
   ./scripts/03-verify-local-llm.sh --max-seconds 60
 
-  Warms and times a short generation. Exits 2 if it exceeds --max-seconds
-  or hits the hard timeout; suggests qwen2.5:0.5b-instruct.
+  Warms and times a short generation. --warm also loads the embedding
+  model so phase 4 does not pay its ~20s cold load, and prints that
+  measured time. Exits 2 if it exceeds --max-seconds or hits the hard
+  timeout; suggests qwen2.5:0.5b-instruct. RAG_REQUEST_TIMEOUT defaults to
+  120s: 5x the measured 20.6s cold load of nomic-embed-text on ws24.
 
 04 RETRIEVAL ONLY
   ./scripts/04-retrieval-only.sh --query "What is the pet policy?" --top-k 3
@@ -59,7 +62,48 @@ no rm -rf, exits 0 or 2. All scripts print measured state first.
   Host-only. Every assert fails closed with exit 2: host commands, repo
   identity, dashboard JSON, indexer stop, I/O threshold, dashboard keys,
   RAG venv/Ollama/model/store, runbook phases, and push (no commits ahead).
-  Use --allow-high-io to override only the I/O threshold.
+  Use --allow-high-io to override only the I/O threshold. Stopping an
+  indexer needs passwordless sudo; otherwise the gate fails closed with
+  the manual pkill command instead of waiting on a password prompt.
+  --yes is forwarded to the runbook, so --all --yes also answers the
+  phase-2 prompt and pauses grafana/dockge/mesh/paypal.
+
+09 OLLAMA START
+  ./scripts/09-ollama-start.sh
+  ./scripts/09-ollama-start.sh --pull
+  ./scripts/09-ollama-start.sh --status
+
+  Prints systemd unit state, the :11434 listener, /api/tags, and models.
+  Uses the unit when present (passwordless sudo required), otherwise starts
+  `ollama serve` with OLLAMA_MAX_LOADED_MODELS=1 OLLAMA_NUM_PARALLEL=1
+  OLLAMA_KEEP_ALIVE=5m, waits for the API, and verifies the chat and
+  embedding models. Idempotent; --pull downloads missing models.
+
+10 RECOVERY AUTOPILOT
+  ./scripts/10-recovery-autopilot.sh
+  ./scripts/10-recovery-autopilot.sh --max-attempts 4 --retry-sleep 30
+
+  Runs 08 --all --yes under a watchdog that tees the full run to
+  /tmp/recovery-autopilot.log and self-corrects known stalls: Ollama down
+  or a model missing (09 --pull), embedding timeout/cold load (retry with
+  the model now resident), I/O still high (wait + retry). It stops with
+  the exact command when the blocker needs credentials (sudo pkill,
+  gh auth). No terminal scraping; the wrapper owns the PTY.
+
+11 HOST ACCESS
+  ./scripts/11-host-access.sh --check
+  ./scripts/11-host-access.sh --install --yes
+  ./scripts/11-host-access.sh --cmd 'hostname; uptime -p'
+  ./scripts/11-host-access.sh --list
+  ./scripts/11-host-access.sh --screen [--window ID]
+
+  Runs in the container: bootstraps a local ssh client (apt download +
+  extract, no root), a dedicated container key, and host authorization.
+  --cmd executes on the host; --list/--screen capture a host window and
+  OCR it (fallback). tmux is the primary monitor: --tmux-new, --tmux-exec,
+  --tmux-capture (exact text), --tmux-send (literal text + Enter),
+  --tmux-kill. The private key is never printed. Revoke with: remove the
+  opencode-container line from the host authorized_keys.
 
 MCP (RETRIEVAL ONLY)
   ./scripts/rag-mcp.sh --self-test

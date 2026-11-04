@@ -28,6 +28,7 @@ PUSH_SCRIPT="${PUSH_SCRIPT:-/home/owner/.local/bin/push-opencode-repos.sh}"
 IO_THRESHOLD="${IO_THRESHOLD:-20}"
 WAIT_SECONDS="${WAIT_SECONDS:-60}"
 MODEL="${MODEL:-qwen2.5:3b-instruct}"
+EMBED_MODEL="${EMBED_MODEL:-nomic-embed-text}"
 
 MODE="diagnose"
 DO_STOP=0
@@ -194,8 +195,8 @@ diagnose() {
 stop_indexers() {
   log "=== gate: indexers ==="
   local pids_u pids_p
-  pids_u=$(pgrep -x updatedb 2>&1)
-  pids_p=$(pgrep -x plocate-updatedb 2>&1)
+  pids_u=$(pgrep -x updatedb)
+  pids_p=$(pgrep -x plocate-updated)
   if [ -z "$pids_u" ] && [ -z "$pids_p" ]; then
     pass "no updatedb/plocate-updatedb running"
     return 0
@@ -206,12 +207,13 @@ stop_indexers() {
     return 0
   fi
   [ "$ASSUME_YES" -eq 1 ] || { fail "indexer running; pass --yes to stop it"; return 1; }
+  sudo -n true || { fail "sudo needs a password; stop it manually: sudo pkill -TERM -x updatedb; sudo pkill -TERM -x plocate-updated"; return 1; }
   if [ -n "$pids_u" ]; then sudo pkill -TERM -x updatedb || fail "could not stop updatedb"; fi
-  if [ -n "$pids_p" ]; then sudo pkill -TERM -x plocate-updatedb || fail "could not stop plocate-updatedb"; fi
+  if [ -n "$pids_p" ]; then sudo pkill -TERM -x plocate-updated || fail "could not stop plocate-updatedb"; fi
   local i
   i=0
   while [ "$i" -lt 30 ]; do
-    if [ -z "$(pgrep -x updatedb 2>&1)" ] && [ -z "$(pgrep -x plocate-updatedb 2>&1)" ]; then
+    if [ -z "$(pgrep -x updatedb)" ] && [ -z "$(pgrep -x plocate-updated)" ]; then
       pass "indexers stopped"
       return 0
     fi
@@ -223,26 +225,28 @@ stop_indexers() {
 
 wait_io_drop() {
   log "=== gate: I/O pressure ==="
-  local v i
+  local v i samples
   i=0
+  samples=0
   while [ "$i" -lt "$WAIT_SECONDS" ]; do
     v=$(psi_io_full10)
-    printf '  io.full avg10=%s (threshold %s)\n' "${v:-unknown}" "$IO_THRESHOLD"
+    samples=$((samples + 1))
+    printf '  sample=%s io.full avg10=%s (threshold %s)\n' "$samples" "${v:-unknown}" "$IO_THRESHOLD"
     case "$v" in
       ''|*[!0-9.]*) break ;;
     esac
     if awk -v v="$v" -v t="$IO_THRESHOLD" 'BEGIN { exit !(v + 0 <= t + 0) }'; then
-      pass "I/O pressure <= ${IO_THRESHOLD}%"
+      pass "I/O pressure <= ${IO_THRESHOLD}% after ${i}s (${samples} samples)"
       return 0
     fi
     i=$((i + 2))
     sleep 2
   done
   if [ "$ALLOW_HIGH_IO" -eq 1 ]; then
-    pass "I/O pressure high but --allow-high-io set"
+    pass "I/O pressure ${v:-unknown}% > ${IO_THRESHOLD}% after ${i}s (${samples} samples) but --allow-high-io set"
     return 0
   fi
-  fail "I/O pressure still above ${IO_THRESHOLD}% (use --allow-high-io to override)"
+  fail "I/O pressure ${v:-unknown}% still above ${IO_THRESHOLD}% after ${i}s (${samples} samples, last sample above); use --allow-high-io to override"
 }
 
 dashboard_low_io() {
@@ -287,10 +291,12 @@ rag_preflight() {
     || { fail "venv imports failed"; return 1; }
   pass "venv imports"
   curl -sS --max-time 5 http://127.0.0.1:11434/api/tags >/dev/null \
-    || { fail "ollama API unreachable"; return 1; }
+    || { fail "ollama API unreachable; run: ./scripts/09-ollama-start.sh (or sudo systemctl start ollama)"; return 1; }
   pass "ollama API"
-  ollama list 2>&1 | grep -Fq "$MODEL" || { fail "model $MODEL not pulled"; return 1; }
+  ollama list 2>&1 | grep -Fq "$MODEL" || { fail "model $MODEL not pulled; run: ollama pull $MODEL"; return 1; }
   pass "model $MODEL"
+  ollama list 2>&1 | grep -Fq "$EMBED_MODEL" || { fail "embedding model $EMBED_MODEL not pulled; run: ollama pull $EMBED_MODEL"; return 1; }
+  pass "embedding model $EMBED_MODEL"
   ( cd "$RAG_DIR" && ./scripts/rag-cli.sh status ) \
     || { fail "rag-cli status failed"; return 1; }
   pass "rag-cli status"
@@ -298,13 +304,15 @@ rag_preflight() {
 
 run_rag() {
   log "=== gate: RAG runbook ==="
-  ( cd "$RAG_DIR" && ./scripts/06-runbook.sh --phase 2 ) \
+  local -a yes=()
+  [ "$ASSUME_YES" -eq 1 ] && yes=(--yes)
+  ( cd "$RAG_DIR" && ./scripts/06-runbook.sh --phase 2 "${yes[@]}" ) \
     || { fail "06 --phase 2 failed"; return 1; }
   pass "06 --phase 2"
   ( cd "$RAG_DIR" && ./scripts/03-verify-local-llm.sh --model "$MODEL" --warm --max-seconds 120 ) \
     || { fail "03 local-LLM verification failed"; return 1; }
   pass "03 local-LLM verification"
-  ( cd "$RAG_DIR" && ./scripts/06-runbook.sh --phase 4 ) \
+  ( cd "$RAG_DIR" && ./scripts/06-runbook.sh --phase 4 "${yes[@]}" ) \
     || { fail "06 --phase 4 failed"; return 1; }
   pass "06 --phase 4"
 }

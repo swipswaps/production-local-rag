@@ -183,6 +183,10 @@ container_action() {
   case "$action" in
     pause)
       confirm "Pause container $name? (recoverable with resume)" || return 2
+      if [ "$DRY_RUN" -eq 0 ] && [ "$(docker inspect -f '{{.State.Paused}}' "$name" 2>&1)" = "true" ]; then
+        log "$name already paused"
+        return 0
+      fi
       run docker pause "$name" || die "docker pause failed"
       record container "$name" "-" paused
       ;;

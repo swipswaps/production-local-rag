@@ -149,3 +149,9 @@ $ ./scripts/04-retrieval-only.sh --query "What is the pet policy?"
 $ ./scripts/07-io-triage.sh
 $ ./scripts/08-gated-recovery.sh --diagnose
 $ ./scripts/08-gated-recovery.sh --all --yes
+$ ./scripts/09-ollama-start.sh --status
+$ ./scripts/09-ollama-start.sh --pull
+$ ./scripts/10-recovery-autopilot.sh
+$ ./scripts/11-host-access.sh --check
+$ ./scripts/11-host-access.sh --cmd 'hostname; uptime -p'
+$ ./scripts/11-host-access.sh --screen

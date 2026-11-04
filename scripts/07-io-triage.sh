@@ -81,8 +81,8 @@ show_updatedb() {
   log "=== updatedb / plocate / indexers ==="
   if command -v pgrep >/dev/null; then
     pgrep -a -x updatedb || log "  updatedb: not running"
-    pgrep -a -x plocate-updatedb || log "  plocate-updatedb: not running"
-    pgrep -a -x tracker-miner-fs || log "  tracker-miner-fs: not running"
+    pgrep -a -x plocate-updated || log "  plocate-updatedb: not running"
+    pgrep -a -x tracker-miner-f || log "  tracker-miner-fs: not running"
     pgrep -a -x baloo_file || log "  baloo_file: not running"
   else
     log "  pgrep unavailable"
@@ -165,12 +165,13 @@ stop_updatedb() {
   local pids
   command -v pgrep >/dev/null || die "pgrep unavailable; run this on the host"
   command -v pkill >/dev/null || die "pkill unavailable"
-  pids=$(pgrep -x updatedb 2>&1)
+  pids=$(pgrep -x updatedb)
   if [ -z "$pids" ]; then
     log "updatedb is not running; nothing to stop"
     return 0
   fi
   confirm "Stop updatedb (PIDs: $pids)? It will resume only if something restarts it." || return 2
+  sudo -n true || die "sudo needs a password; stop manually: sudo pkill -TERM -x updatedb"
   sudo pkill -TERM -x updatedb || die "could not stop updatedb"
   log "sent SIGTERM to updatedb"
   return 0

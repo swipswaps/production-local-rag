@@ -1,6 +1,29 @@
 SCRIPT RUNBOOK: CONTENTION -> RETRIEVAL-ONLY
 ============================================
 
+START HERE
+----------
+This is the per-script reference. Read ../README.txt first for the engine,
+quick start, and ingestion rules.
+
+Quick index:
+  setup/status    setup-rag-venv.sh, rag-cli.sh status
+  ingest/query    rag-cli.sh ingest/query, 04-retrieval-only.sh
+  verify         03-verify-local-llm.sh --warm, rag-mcp.sh --self-test
+  recover        07-io-triage.sh, 08-gated-recovery.sh, 09-ollama-start.sh,
+                 10-recovery-autopilot.sh, 11-host-access.sh
+  controls       05-resource-toggles.sh, 06-runbook.sh
+
+CONVENTIONS
+-----------
+- Run from the repo root.
+- Numbered NN-*.sh are ordered runbooks; unnumbered scripts are tools.
+- "Host-only" means the host (docker/systemctl/ollama); "container" means the
+  opencode web container. Each entry says which.
+- Every tracked top-level script must appear here (readme-audit.sh).
+- Scripts print measured state first; timeouts print the bound/elapsed/last
+  sample.
+
 Run from the repo root. Guardrails: no sed, no 2>/dev/null, no set -e,
 no rm -rf, exits 0 or 2. All scripts print measured state first.
 
@@ -41,6 +64,31 @@ no rm -rf, exits 0 or 2. All scripts print measured state first.
 
   Emits JSON chunks for a remote model (opencode / DeepSeek / Gemini) to
   synthesize the answer. No local generation.
+
+05 RESOURCE TOGGLES
+  ./scripts/05-resource-toggles.sh
+  ./scripts/05-resource-toggles.sh --list
+  ./scripts/05-resource-toggles.sh --status
+  ./scripts/05-resource-toggles.sh --target grafana --action pause
+  ./scripts/05-resource-toggles.sh --restore
+
+  Interactive or flag-driven pause/resume/stop/start/restart/low for web,
+  dashboard, grafana, dockge, mesh, paypal, caddy, litellm, chrome, ollama,
+  or a container name. Records actions so --restore undoes them; the dashboard
+  is never killed by the bundled scripts.
+
+06 RUNBOOK
+  ./scripts/06-runbook.sh --phase 1 [--stress N]
+  ./scripts/06-runbook.sh --phase 2
+  ./scripts/06-runbook.sh --phase 3
+  ./scripts/06-runbook.sh --phase 4
+  ./scripts/06-runbook.sh --phase 5 [--restart-web --yes]
+  ./scripts/06-runbook.sh --phase 6
+  ./scripts/06-runbook.sh --all
+
+  Guided phases: CPU lock baseline/EC reset, contention/pause extras, unload
+  models + timeouts, retrieval-only proof, dashboard reload, feedback plan.
+  --yes is forwarded from 08 for the phase-2 pause prompt.
 
 07 I/O TRIAGE
   ./scripts/07-io-triage.sh
@@ -104,6 +152,19 @@ no rm -rf, exits 0 or 2. All scripts print measured state first.
   --tmux-capture (exact text), --tmux-send (literal text + Enter),
   --tmux-kill. The private key is never printed. Revoke with: remove the
   opencode-container line from the host authorized_keys.
+
+CLI AND SETUP
+  ./scripts/setup-rag-venv.sh              create the 3.10-3.13 venv
+  ./scripts/setup-rag-venv.sh --dry-run    print without running
+  ./scripts/rag-cli.sh status
+  ./scripts/rag-cli.sh ingest docs/ --reset
+  ./scripts/rag-cli.sh query "..." --top-k 3
+  ./scripts/rag-cli.sh query "..." --json
+  ./scripts/rag-cli.sh query "..." --answer
+  ./scripts/rag-cli.sh reset --yes
+
+  setup-rag-venv.sh picks a compatible interpreter and installs pinned deps.
+  rag-cli.sh runs src.cli in .venv; ingest appends unless --reset is passed.
 
 MCP (RETRIEVAL ONLY)
   ./scripts/rag-mcp.sh --self-test
